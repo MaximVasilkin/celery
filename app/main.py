@@ -1,22 +1,30 @@
-import uuid
 import os
+import base64
+import uuid
 from flask import jsonify, request, send_file
 from flask.views import MethodView
 from celery.result import AsyncResult
 from upscale_app import upscale
 from celery import Celery
 from flask import Flask
-
 import redis
+from config import PATH_TO_STORAGE
+
+
+# redis storage
 
 redis_dict = redis.Redis()
 
+
+# flask app
+
 app_name = 'my_app'
 app = Flask(app_name)
-UPLOAD_FOLDER = 'files'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['JSON_AS_ASCII'] = False
 app.config['JSON_SORT_KEYS'] = False
+
+
+# Celery
 
 celery_ = Celery(app_name, broker='redis://localhost:6379/2', backend='redis://localhost:6379/4')
 
@@ -28,33 +36,7 @@ class ContextTask(celery_.Task):
 
 
 celery_.Task = ContextTask
-
 upscaler_ = celery_.task(upscale.upscaler)
-
-# error handlers
-
-# @app.errorhandler(HttpError)
-# def http_error_handler(error):
-#     return __error_message(error.message, error.status_code)
-
-
-# work with objects, validate, authenticate
-
-# def validate(json, validate_model_class):
-#     try:
-#         model = validate_model_class(**json)
-#         validated_json = model.dict(exclude_none=True)
-#         if not validated_json:
-#             raise HttpError(400, 'Validation error')
-#         return validated_json
-#     except ValidationError as error:
-#         raise HttpError(400, error.errors())
-#
-#
-# def __error_message(message, status_code):
-#     response = jsonify({'message': message} | Status.error)
-#     response.status_code = status_code
-#     return response
 
 
 # views
@@ -71,30 +53,31 @@ class TaskView(MethodView):
         if status == 'SUCCESS':
             file_name = redis_dict.get(task_id)
             message.update({'link': f'{request.url_root}processed/{file_name.decode()}'})
-        #return jsonify({'status': task.status, 'result': task.result})
         return jsonify(message)
 
     def post(self):
-        image_name, image_path = self._save_image('image')
-        upscaled_image_name = f'upscaled_{image_name}'
-        task = upscaler_.delay(image_path, upscaled_image_name, r'F:\HomeWorks\Celery\app\upscale_app\EDSR_x2.pb')
+        image = self._get_image('image')
+        image_str = base64.b64encode(image.read()).decode()
+        upscaled_image_name = f'upscaled_{image.filename}'
+        path = os.path.join(PATH_TO_STORAGE, upscaled_image_name)
+        task = upscaler_.delay(image_str, path, r'F:\HomeWorks\Celery\app\upscale_app\EDSR_x2.pb')
         redis_dict.mset({task.id: upscaled_image_name})
         return jsonify({'task_id': task.id})
 
-    def _save_image(self, field):
+    def _get_image(self, field):
         image = request.files.get(field)
         file_name = image.filename
         extension = file_name[file_name.rfind('.'):]
         file_name = uuid.uuid4()
         file_name = f'{file_name}{extension}'
-        path = os.path.join(UPLOAD_FOLDER, file_name)
-        image.save(path)
-        return file_name, path
+        image.filename = file_name
+        return image
 
 
 class ImageView(MethodView):
     def get(self, file):
-        return send_file(file, mimetype='image/gif')
+        return send_file(os.path.join(PATH_TO_STORAGE, file), mimetype='image/gif')
+
 
 # urls
 
@@ -119,4 +102,3 @@ app.add_url_rule('/processed/<file>',
 
 if __name__ == '__main__':
     app.run('127.0.0.1', port=5000)
-
