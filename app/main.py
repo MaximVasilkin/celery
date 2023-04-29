@@ -8,7 +8,7 @@ from upscale_app import upscale
 from celery import Celery
 from flask import Flask
 import redis
-from config import PATH_TO_STORAGE
+from config import PATH_TO_STORAGE, PATH_TO_MODEL
 
 
 # redis storage
@@ -60,7 +60,7 @@ class TaskView(MethodView):
         image_str = base64.b64encode(image.read()).decode()
         upscaled_image_name = f'upscaled_{image.filename}'
         path = os.path.join(PATH_TO_STORAGE, upscaled_image_name)
-        task = upscaler_.delay(image_str, path, r'F:\HomeWorks\Celery\app\upscale_app\EDSR_x2.pb')
+        task = upscaler_.delay(image_str, path, PATH_TO_MODEL)
         redis_dict.mset({task.id: upscaled_image_name})
         return jsonify({'task_id': task.id})
 
