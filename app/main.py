@@ -1,11 +1,15 @@
 import uuid
 import os
-from flask import jsonify, request
+from flask import jsonify, request, send_file
 from flask.views import MethodView
 from celery.result import AsyncResult
 from upscale_app import upscale
 from celery import Celery
 from flask import Flask
+
+import redis
+
+redis_dict = redis.Redis()
 
 app_name = 'my_app'
 app = Flask(app_name)
@@ -62,13 +66,19 @@ def main_view():
 class TaskView(MethodView):
     def get(self, task_id):
         task = AsyncResult(task_id, app=celery_)
+        status = task.status
+        message = {'status': status}
+        if status == 'SUCCESS':
+            file_name = redis_dict.get(task_id)
+            message.update({'link': f'{request.url_root}processed/{file_name.decode()}'})
         #return jsonify({'status': task.status, 'result': task.result})
-
-        return jsonify({'status': task.status})
+        return jsonify(message)
 
     def post(self):
-        image_path = self._save_image('image')
-        task = upscaler_.delay(image_path, 'lama_600px.png')
+        image_name, image_path = self._save_image('image')
+        upscaled_image_name = f'upscaled_{image_name}'
+        task = upscaler_.delay(image_path, upscaled_image_name, r'F:\HomeWorks\Celery\app\upscale_app\EDSR_x2.pb')
+        redis_dict.mset({task.id: upscaled_image_name})
         return jsonify({'task_id': task.id})
 
     def _save_image(self, field):
@@ -79,13 +89,12 @@ class TaskView(MethodView):
         file_name = f'{file_name}{extension}'
         path = os.path.join(UPLOAD_FOLDER, file_name)
         image.save(path)
-        return path
+        return file_name, path
 
 
-# class ImageView(MethodView):
-    # def get(self, file):
-    #     adv = get_object_and_check(Advertisment, adv_id, 'advertisment')
-    #     return jsonify(adv | Status.ok)
+class ImageView(MethodView):
+    def get(self, file):
+        return send_file(file, mimetype='image/gif')
 
 # urls
 
@@ -101,9 +110,9 @@ app.add_url_rule('/tasks/<task_id>',
                  view_func=TaskView.as_view('task_get'),
                  methods=['GET'])
 
-# app.add_url_rule('/processed/<file>',
-#                  view_func=ImageView.as_view('image_get'),
-#                  methods=['GET'])
+app.add_url_rule('/processed/<file>',
+                 view_func=ImageView.as_view('image_get'),
+                 methods=['GET'])
 
 
 # Start project
