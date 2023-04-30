@@ -6,13 +6,12 @@ from flask import jsonify, request, send_file
 from flask.views import MethodView
 from celery_and_flask_app import app, celery_, upscaler_
 import redis
-from config import PATH_TO_STORAGE, PATH_TO_MODEL
+from config import PATH_TO_STORAGE
 
 
 # redis storage
 
 redis_dict = redis.Redis(host='redis')
-
 
 
 # views
@@ -36,7 +35,7 @@ class TaskView(MethodView):
         image_str = base64.b64encode(image.read()).decode()
         upscaled_image_name = f'upscaled_{image.filename}'
         path = os.path.join(PATH_TO_STORAGE, upscaled_image_name)
-        task = upscaler_.delay(image_str, path, PATH_TO_MODEL)
+        task = upscaler_.delay(image_str, path)
         redis_dict.mset({task.id: upscaled_image_name})
         return jsonify({'task_id': task.id})
 
