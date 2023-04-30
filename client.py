@@ -4,9 +4,10 @@ import os
 
 
 CURRENT_PATH = os.getcwd()
+ROOT = 'app'
 FOLDER = 'upscale_app'
 IMAGE = 'lama_300px.png'
-PATH_TO_IMAGE = os.path.join(CURRENT_PATH, FOLDER, IMAGE)
+PATH_TO_IMAGE = os.path.join(CURRENT_PATH, ROOT, FOLDER, IMAGE)
 
 
 with open(PATH_TO_IMAGE, 'rb') as image:
@@ -30,4 +31,3 @@ with open(PATH_TO_IMAGE, 'rb') as image:
         elif response_status == 'FAILURE':
             print('Что-то пошло не так')
             break
-

@@ -12,15 +12,15 @@ services:
     depends_on:
       - redis
     volumes:
-      - ./:/app
+      - ./app/upscaled_files:/upscaled_files
 
   app:
     build:
       context: .
     ports:
       - 5000:5000
-    entrypoint: python main.py
+    entrypoint: gunicorn -b 0.0.0.0:5000 main:app
     depends_on:
       - redis
     volumes:
-      - ./:/app
+      - ./app/upscaled_files:/upscaled_files
