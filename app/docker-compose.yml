@@ -1,0 +1,26 @@
+version: '3.9'
+
+
+services:
+  redis:
+    image: redis:7.0.0-alpine3.15
+
+  celery:
+    build:
+      context: .
+    entrypoint: celery -A celery_and_flask_app.celery_ worker -c 2
+    depends_on:
+      - redis
+    volumes:
+      - ./:/app
+
+  app:
+    build:
+      context: .
+    ports:
+      - 5000:5000
+    entrypoint: python main.py
+    depends_on:
+      - redis
+    volumes:
+      - ./:/app

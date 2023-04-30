@@ -7,8 +7,9 @@ COPY . .
 
 COPY ./requirements.txt .
 
-RUN pip install -r requirements.txt
+EXPOSE 5000
 
 RUN apt update && apt install libgl1-mesa-glx -y
 
-CMD celery -A main.celery_ worker -c 2
+RUN pip install -r requirements.txt
+

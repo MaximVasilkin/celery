@@ -1,42 +1,18 @@
 import os
 import base64
 import uuid
+from celery.result import AsyncResult
 from flask import jsonify, request, send_file
 from flask.views import MethodView
-from celery.result import AsyncResult
-from upscale_app import upscale
-from celery import Celery
-from flask import Flask
+from celery_and_flask_app import app, celery_, upscaler_
 import redis
 from config import PATH_TO_STORAGE, PATH_TO_MODEL
 
 
 # redis storage
 
-redis_dict = redis.Redis()
+redis_dict = redis.Redis(host='redis')
 
-
-# flask app
-
-app_name = 'my_app'
-app = Flask(app_name)
-app.config['JSON_AS_ASCII'] = False
-app.config['JSON_SORT_KEYS'] = False
-
-
-# Celery
-
-celery_ = Celery(app_name, broker='redis://localhost:6379/2', backend='redis://localhost:6379/4')
-
-
-class ContextTask(celery_.Task):
-    def __call__(self, *args, **kwargs):
-        with app.app_context():
-            return self.run(*args, **kwargs)
-
-
-celery_.Task = ContextTask
-upscaler_ = celery_.task(upscale.upscaler)
 
 
 # views
@@ -101,4 +77,4 @@ app.add_url_rule('/processed/<file>',
 # Start project
 
 if __name__ == '__main__':
-    app.run('127.0.0.1', port=5000)
+    app.run('0.0.0.0', port=5000)

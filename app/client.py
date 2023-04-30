@@ -20,9 +20,14 @@ with open(PATH_TO_IMAGE, 'rb') as image:
         response = response.json()
         print(response)
         assert status_code == 200
-        if response['status'] == 'SUCCESS':
+        response_status = response['status']
+        if response_status == 'SUCCESS':
             url = response['link']
             image = requests.get(url)
             status_code = image.status_code
             assert status_code == 200
             break
+        elif response_status == 'FAILURE':
+            print('Что-то пошло не так')
+            break
+
